@@ -66,13 +66,33 @@ rekening penerima** / Cr `2-1400`. Entri pencairan di `financing.disbursements[]
 - Uji: `tests/test_p84_petty_expense.py` 4/4 (bukti & batas, jurnal + void SoD + saldo pulih, usulan pengisian di bawah ambang, RBAC & rekening bank ditolak).
 - Catatan jujur: Kas Besar (bukan kas kecil) ikut dinilai terhadap batas imprest bawaan → tampil "Melebihi batas" (informatif); setel `imprest_limit` per kas bila kas besar memang boleh besar.
 
-## 6. Analisis gap Finance & Accounting yang tersisa (backlog terurut)
+## 6. Fase 85 — Tutup periode Kas & Bank per rekening (menutup P0 #1 sisa & P0 #3)
+- `cash_period_lock.py`, koleksi `cash_period_locks`. Kunci per (rekening, bulan): **bank** hanya bila rekonsiliasi Fase 83 per akhir bulan berstatus `seimbang`/`dijelaskan` dan mutasi terakhir yang diimpor sudah di bulan itu; **kas** hanya bila hasil opname (fisik) = saldo buku akhir bulan. Bulan berjalan tidak bisa dikunci. `closing_balance` disimpan = saldo awal tetap periode berikutnya.
+- Penegakan di `gl.post_journal` (`cash_period_lock.resolve_date`): baris ke sub-akun yang terkunci dengan tanggal ≤ akhir periode terkunci → jurnal **manual ditolak** (400 "…sudah dikunci…"), posting **otomatis digeser** ke hari pertama sesudah kunci + memo "posting digeser (kunci kas …)". Pembalikan (unmatch, void) tetap bertanggal hari ini → saldo penutup terkunci tidak berubah.
+- Endpoint (`routers/cash_control_router.py`): `GET /cash-bank/locks` (per rekening: terkunci s.d., saldo penutup, riwayat), `GET /cash-bank/locks/preview?account_id&period[&counted_balance]` (kelayakan + alasan), `POST /cash-bank/locks` & `POST /cash-bank/locks/{id}/unlock` (`bank:approve`, alasan wajib, jejak tersimpan).
+- UI: tab **Tutup Periode** — tabel rekening (saldo, terkunci s.d., saldo penutup), dialog kunci dengan pratinjau hidup (layak/belum + sebab), buka kunci beralasan, riwayat.
+
+## 7. Fase 86 — Giro / cek mundur (PDC) (menutup P0 #4)
+- `pdc_engine.py`, koleksi `pdc_instruments`, nomor `GIRO/…`. Akun baru CoA: `1-1350 Giro / Cek Belum Cair` (aset) dan `2-1480 Giro Diterima Belum Cair (Kontra)` (kewajiban).
+- **Diterima**: Dr 1-1350 / Cr 2-1480 (memorandum; AR TIDAK berkurang — uang belum ada). Warkat kembar (bank+nomor) ditolak; deal wajib punya jadwal AR.
+- **Kliring** (`bank:update`, pilih rekening bank aktif): pasangan dibalik, lalu `finance_engine.apply_receipt(method="cheque", cash_account_id)` → kwitansi KWT, alokasi termin, kelebihan → titipan; giro tanpa deal → Dr bank / Cr 2-1450 Titipan Pelanggan. **Tolakan**/**batal**: pasangan dibalik, alasan wajib, notifikasi keuangan; AR tetap terbuka.
+- Endpoint `/pdc`: `GET` (ringkasan: di tangan, jatuh tempo ≤7 hari, lewat tempo, ditolak), `POST`, `POST /{id}/clear|bounce|cancel`.
+- UI: tab **Giro Mundur** — KPI, tabel, dialog terima (jenis cek/BG, bank SSOT `financing_bank`, nomor, nominal, jatuh tempo, cari tagihan AR), dialog kliring (rekening bank + tanggal), tolakan/batal via alasan.
+- Catatan jujur: 1-1350/2-1480 selalu bersaldo sama (memorandum). Cara ini dipilih supaya AR hanya berkurang lewat satu mesin (`apply_receipt`), bukan dua.
+
+## 8. Fase 87 — Bukti Kas Masuk/Keluar (BKM/BKK) (menutup P0 #5 bagian dokumen)
+- `cash_voucher.py`, koleksi `cash_vouchers`. Hook di `gl.post_journal`: setiap baris jurnal ke sub-akun kas/bank menerbitkan satu bukti bernomor — debit → **BKM/…**, kredit → **BKK/…** (aturan penomoran `cash_voucher_in/out`). Idempoten per (jurnal, sub-akun); jurnal lama diterbitkan susulan saat startup (`backfill`). Bukti = turunan jurnal (sumber kebenaran tetap `journal_entries`), menyimpan lawan akun, memo, sumber.
+- Endpoint: `GET /cash-bank/vouchers?kind&account_id&date_from&date_to&q&skip&limit` (+ Σ masuk/keluar), `GET /cash-bank/vouchers/{id}`, `GET /cash-bank/vouchers/{id}/pdf` (kop `doc_layout` kode `BKM`/`BKK`; pihak diisi dari kwitansi/AP/kas bon/kas kecil/giro bila terlacak).
+- UI: tab **Bukti Kas (BKM/BKK)** — filter jenis/rekening/cari, tabel bernomor dengan tombol cetak PDF, muat lebih.
+- Belum: *payment run* (pembayaran massal AP) — masih per tagihan.
+
+## 9. Analisis gap Finance & Accounting yang tersisa (backlog terurut)
 **P0 — akuntansi belum utuh**
-1. ~~Rekonsiliasi bank ↔ sub-akun~~ — **selesai Fase 83** (lihat §4). Sisa: kunci periode setelah rekonsiliasi dinyatakan seimbang.
-2. ~~Kas kecil (imprest)~~ — **selesai Fase 84** (lihat §5). Sisa: jadwal pengingat otomatis ke kasir bila di bawah ambang >N hari.
-3. **Tutup periode Kas & Bank**: jurnal ke rekening tidak boleh bertanggal di periode yang sudah direkonsiliasi; kunci saldo awal per bulan.
-4. **Cek/giro mundur (PDC)**: penerimaan giro = akun `1-1300 Giro Belum Cair`, baru jadi bank saat kliring; tolakan giro.
-5. **Pembayaran massal (payment run) & bukti kas keluar (BKK) / kas masuk (BKM)** bernomor dan tercetak; sekarang uang keluar tersebar per modul tanpa dokumen kas standar.
+1. ~~Rekonsiliasi bank ↔ sub-akun~~ — **selesai Fase 83** (§4); kunci periode setelah seimbang — **selesai Fase 85** (§6).
+2. ~~Kas kecil (imprest)~~ — **selesai Fase 84** (§5). Sisa: jadwal pengingat otomatis ke kasir bila di bawah ambang >N hari.
+3. ~~Tutup periode Kas & Bank~~ — **selesai Fase 85** (§6).
+4. ~~Cek/giro mundur (PDC)~~ — **selesai Fase 86** (§7). Sisa: biaya tolakan giro & denda otomatis.
+5. ~~BKK/BKM bernomor & tercetak~~ — **selesai Fase 87** (§8). Sisa: **payment run** AP massal.
 
 **P1 — pelaporan & kontrol**
 6. Laporan arus kas langsung per rekening (bukan hanya klasifikasi operasi/investasi/pendanaan).

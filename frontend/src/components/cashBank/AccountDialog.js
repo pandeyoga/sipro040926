@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RupiahInput } from "@/components/ui/rupiah-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ReferenceSelect from "@/components/patterns/ReferenceSelect";
 import api from "@/services/apiClient";
 import { CASHBANK, PETTYX } from "@/constants/testIds";
 
@@ -85,7 +86,7 @@ export default function AccountDialog({ open, account, onClose, onSaved }) {
             {form.kind === "bank" ? (
               <div className="space-y-1.5">
                 <Label className="text-xs">Bank</Label>
-                <Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} placeholder="Bank BCA" className="h-9" data-testid={CASHBANK.accountBank} />
+                <ReferenceSelect group="financing_bank" value={form.bank_name} onChange={(v) => set("bank_name", v)} testId={CASHBANK.accountBank} />
               </div>
             ) : null}
             <div className="space-y-1.5">

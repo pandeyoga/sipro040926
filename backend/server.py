@@ -119,6 +119,8 @@ from routers.build_board_router import router as build_board_router
 from routers.bank_router import router as bank_router
 from routers.cash_bank_router import router as cash_bank_router
 from routers.petty_expense_router import router as petty_expense_router
+from routers.cash_control_router import router as cash_control_router
+from routers.pdc_router import router as pdc_router
 from routers.intake_router import router as intake_router
 from routers.quotations_router import router as quotations_router
 from routers.pricing_router import router as pricing_router
@@ -309,6 +311,10 @@ async def lifespan(app: FastAPI):
                         cbk["migrated_lines"])
     from seed_phase82 import seed_phase82
     await seed_phase82(ORG_ID)
+    # Fase 87: bukti kas BKM/BKK susulan untuk jurnal kas/bank yang lahir sebelum fase ini.
+    import cash_voucher as _cv
+    for org_id in orgs:
+        await _cv.backfill(org_id)
     start_scheduler()
     yield
     stop_scheduler()
@@ -422,6 +428,8 @@ api.include_router(build_board_router)
 api.include_router(bank_router)
 api.include_router(cash_bank_router)
 api.include_router(petty_expense_router)
+api.include_router(cash_control_router)
+api.include_router(pdc_router)
 api.include_router(intake_router)
 api.include_router(quotations_router)
 api.include_router(pricing_router)

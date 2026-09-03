@@ -99,6 +99,9 @@ REGISTRY = [
     _r("journal", "Jurnal umum", "JV", "keuangan", width=5),
     _r("cash_advance", "Kas bon / uang muka", "KB", "keuangan", tokens=_PROJ),
     _r("petty_expense", "Pengeluaran kas kecil", "KK", "keuangan", tokens=_PROJ),
+    _r("pdc", "Giro / cek mundur diterima", "GIRO", "keuangan"),
+    _r("cash_voucher_in", "Bukti kas masuk (BKM)", "BKM", "keuangan"),
+    _r("cash_voucher_out", "Bukti kas keluar (BKK)", "BKK", "keuangan"),
     _r("loan", "Pembiayaan / pinjaman", "PBY", "keuangan"),
     _r("fixed_asset", "Aset tetap", "AST", "keuangan", tokens=["CATEGORY"]),
     # ---------------------------------------------------------------- kode master

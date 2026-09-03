@@ -30,6 +30,7 @@ STANDARD_COA = [
     ("1-1100", "Kas", "asset"),
     ("1-1200", "Bank", "asset"),
     ("1-1300", "Piutang Usaha", "asset"),
+    ("1-1350", "Giro / Cek Belum Cair", "asset"),
     ("1-1400", "Persediaan Material", "asset"),
     ("1-1500", "Uang Muka Karyawan (Kas Bon)", "asset"),
     ("1-1600", "Aset Proyek dalam Penyelesaian (WIP)", "asset"),
@@ -53,6 +54,7 @@ STANDARD_COA = [
     # Fase 77: biaya BPHTB/notaris yang DITAMPUNG dari pembeli (harga exclude) — kewajiban
     # untuk disalurkan ke notaris/BPN, bukan pendapatan.
     ("2-1470", "Titipan Biaya Customer (BPHTB/Notaris)", "liability"),
+    ("2-1480", "Giro Diterima Belum Cair (Kontra)", "liability"),
     ("2-1500", "Utang Marketing Fee", "liability"),
     ("2-1600", "Utang Komisi", "liability"),
     ("2-2100", "Utang Bank / Leasing", "liability"),
@@ -158,6 +160,12 @@ async def post_journal(org_id, memo, lines, *, date=None, source_type=None, sour
     d, shifted_from = (d, None) if allow_closed else await gl_periods.resolve_post_date(org_id, d, auto)
     if shifted_from:
         memo = f"{memo} · posting digeser (periode {shifted_from} ditutup)"
+    # Fase 85: sub-akun kas/bank yang periodenya sudah dikunci (rekonsiliasi seimbang) tidak
+    # menerima jurnal bertanggal ≤ akhir periode terkunci — manual ditolak, otomatis digeser.
+    import cash_period_lock as _cpl
+    d, lock_note = await _cpl.resolve_date(org_id, d, [ln["account_code"] for ln in norm], auto)
+    if lock_note:
+        memo = f"{memo} · posting digeser ({lock_note})"
     entry_no = await seq.next_number("journal", org_id, prefix="JV", width=5, year=ts[:4])
     doc = {
         "id": new_id(), "org_id": org_id, "entry_no": entry_no, "date": d,
@@ -169,6 +177,9 @@ async def post_journal(org_id, memo, lines, *, date=None, source_type=None, sour
         doc["source_deal_id"] = source_deal_id
     await db.journal_entries.insert_one(dict(doc))
     doc.pop("_id", None)
+    # Fase 87: setiap baris ke sub-akun kas/bank menerbitkan bukti kas BKM/BKK bernomor.
+    import cash_voucher as _cv
+    await _cv.issue_for_journal(org_id, doc)
     return doc
 
 

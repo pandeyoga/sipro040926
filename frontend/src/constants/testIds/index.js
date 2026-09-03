@@ -124,3 +124,5 @@ export * from './p81';
 export * from './p82';
 // Fase 84 — kas kecil imprest (pengeluaran langsung + pengisian ulang).
 export * from './p84';
+// Fase 85–87 — kunci periode kas, giro mundur, bukti kas BKM/BKK.
+export * from './p85';

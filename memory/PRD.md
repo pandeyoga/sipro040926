@@ -13,6 +13,26 @@ Bahasa produk & komunikasi: **Indonesia**.
 - Kredensial uji: `/app/memory/test_credentials.md` (sandi demo `Sipro#2026`).
 
 ## Riwayat implementasi (terbaru di atas)
+### 3 Sep 2026 — Fase 85–87: Tutup periode kas per rekening, Giro mundur (PDC), Bukti Kas BKM/BKK — SELESAI (iteration_134)
+- **Fase 85** `cash_period_lock.py` + `/cash-bank/locks*`: kunci (rekening, bulan) hanya bila rekonsiliasi
+  bank akhir bulan `seimbang/dijelaskan` (kas: opname = saldo buku); bulan berjalan tidak bisa dikunci;
+  `gl.post_journal` menolak jurnal manual ke sub-akun terkunci & menggeser posting otomatis (memo
+  "posting digeser (kunci kas …)"). Buka kunci `bank:approve` beralasan. UI tab **Tutup Periode**.
+- **Fase 86** `pdc_engine.py` + `/pdc`: CoA baru `1-1350 Giro/Cek Belum Cair`, `2-1480` kontra.
+  Terima = memorandum Dr 1-1350/Cr 2-1480 (AR belum berkurang); kliring = balik + `apply_receipt
+  (method=cheque, cash_account_id)` → KWT; tanpa deal → titipan 2-1450; tolakan/batal = balik +
+  notifikasi. UI tab **Giro Mundur** (KPI, terima, cairkan, tolak, batal; bank dari SSOT `financing_bank`).
+- **Fase 87** `cash_voucher.py` + `/cash-bank/vouchers*`: hook di `post_journal` — tiap baris ke sub-akun
+  kas/bank menerbitkan BKM (debit) / BKK (kredit) bernomor, idempoten, backfill startup; PDF ber-kop
+  (`doc_layout` kode BKM/BKK). UI tab **Bukti Kas (BKM/BKK)** (filter, cari, cetak).
+- Pembenahan baseline kecil: `AccountDialog` field Bank kini `ReferenceSelect financing_bank`
+  (temuan `audit_forms_deep` lama).
+- Uji: `tests/test_p85_87_cash_control.py` 3/3; testing agent iteration_134 lulus penuh (frontend E2E
+  ketiga fase + RBAC). Dokumen `52_KAS_BANK_SPEC.md` §6–9.
+- Backlog Kas & Bank berikutnya (§9): P0 sisa = payment run AP massal, biaya tolakan giro, pengingat
+  kasir kas kecil; P1 = arus kas per rekening, cash forecast vs posisi kas, limit otorisasi berjenjang,
+  jurnal reklas antar sub-akun.
+
 ### 3 Sep 2026 — Fase 84: Kas kecil imprest — pengeluaran langsung berbukti + usulan pengisian — SELESAI (iteration_133)
 - Lingkungan dipulihkan dari repo `pandeyoga/Sipro030926` di container baru: `backend/.env`
   dibuat ulang (`JWT_SECRET`, `DEFAULT_ORG_ID=org-sipro`, `PORTAL_MASTER_OTP=000000`,

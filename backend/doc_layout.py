@@ -53,6 +53,8 @@ TARGETS = {
     "BAP": ("Berita Acara Pembatalan & Refund", "letter"),
     "BAST": ("Berita Acara Serah Terima unit", "letter"),
     "KWITANSI": ("Kwitansi penerimaan pembayaran", "letter"),
+    "BKM": ("Bukti Kas Masuk (BKM)", "letter"),
+    "BKK": ("Bukti Kas Keluar (BKK)", "letter"),
     "PENAWARAN": ("Penawaran harga unit", "letter"),
     "FAKTUR": ("Faktur pajak", "letter"),
     "BUPOT": ("Bukti potong PPh", "letter"),
